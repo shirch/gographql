@@ -46,8 +46,24 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.UserInput
 	return token, nil
 }
 
+type Result struct {
+	Password string
+	Id       string
+}
+
 func (r *mutationResolver) Login(ctx context.Context, input model.Login) (string, error) {
-	panic(fmt.Errorf("not implemented"))
+	var user model.User
+	user.Name = input.Username
+	user.Password = input.Password
+	correct := Authenticate(&user, r.DB)
+	if !correct {
+		return "", &WrongUsernameOrPasswordError{}
+	}
+	token, err := jwt.GenerateToken(user.Name)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func (r *mutationResolver) UpdateLink(ctx context.Context, linkID string, input model.LinkInput) (*model.Link, error) {
@@ -79,7 +95,15 @@ func (r *mutationResolver) DeleteUser(ctx context.Context, userID string) (bool,
 }
 
 func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (string, error) {
-	panic(fmt.Errorf("not implemented"))
+	username, err := jwt.ParseToken(input.Token)
+	if err != nil {
+		return "", fmt.Errorf("access denied")
+	}
+	token, err := jwt.GenerateToken(username)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func (r *queryResolver) Links(ctx context.Context) ([]*model.Link, error) {
@@ -108,12 +132,26 @@ func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
+
+//CheckPassword hash compares raw password with it's hashed values
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 func GetUserIdByUsername(username string, DB *gorm.DB) (string, error) {
-	var id string
-	DB.Raw("select ID from Users WHERE Username = ?", username).Scan(&id)
-	return id, nil
+	var result Result
+	DB.Raw("select id from `users` WHERE name = ?", username).Scan(&result)
+	return result.Id, nil
+}
+
+func Authenticate(user *model.User, DB *gorm.DB) bool {
+	var result Result
+	DB.Raw("select password from `users` WHERE name = ?", user.Name).Scan(&result)
+	return CheckPasswordHash(user.Password, result.Password)
+}
+
+type WrongUsernameOrPasswordError struct{}
+
+func (m *WrongUsernameOrPasswordError) Error() string {
+	return "wrong username or password"
 }
