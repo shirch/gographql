@@ -12,6 +12,9 @@ import (
 	"github.com/shirch/graphql/graph"
 	"github.com/shirch/graphql/graph/generated"
 	"github.com/shirch/graphql/graph/model"
+	"github.com/shirch/graphql/internal/auth"
+
+	"github.com/go-chi/chi"
 )
 
 var db *gorm.DB
@@ -24,9 +27,9 @@ func main() {
 		port = defaultPort
 	}
 
-	//router := chi.NewRouter()
+	router := chi.NewRouter()
 
-	//router.Use(auth.Middleware())
+	router.Use(auth.Middleware(db))
 
 	initDB()
 	http.Handle("/", handler.Playground("GraphQL playground", "/query"))

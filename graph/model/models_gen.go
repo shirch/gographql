@@ -9,17 +9,12 @@ type Link struct {
 	User    *User  `json:"user"`
 }
 
-type Login struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type NewLink struct {
+type LinkInput struct {
 	Title   string `json:"title"`
 	Address string `json:"address"`
 }
 
-type NewUser struct {
+type Login struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -29,6 +24,12 @@ type RefreshTokenInput struct {
 }
 
 type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+type UserInput struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }

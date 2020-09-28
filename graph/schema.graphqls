@@ -8,13 +8,14 @@ type Link {
 type User {
   id: ID!
   name: String!
+  password: String!
 }
 
 type Query {
   links: [Link!]!
 }
 
-input NewLink {
+input LinkInput {
   title: String!
   address: String!
 }
@@ -23,7 +24,7 @@ input RefreshTokenInput{
   token: String!
 }
 
-input NewUser {
+input UserInput {
   username: String!
   password: String!
 }
@@ -34,9 +35,13 @@ input Login {
 }
 
 type Mutation {
-  createLink(input: NewLink!): Link!
-  createUser(input: NewUser!): String!
+  createLink(input: LinkInput!): Link!
+  createUser(input: UserInput!): String!
   login(input: Login!): String!
+  updateLink(linkId: ID!, input: LinkInput!): Link!
+  deleteLink(linkId: ID!): Boolean!
+  updateUser(userId: ID!, input: UserInput!): User!
+  deleteUser(userId: ID!): Boolean!
   # we'll talk about this in authentication section
   refreshToken(input: RefreshTokenInput!): String!
 }
