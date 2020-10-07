@@ -51,13 +51,11 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateLink   func(childComplexity int, input model.LinkInput) int
+		CreateLink   func(childComplexity int, input model.CreateLinkInput) int
 		CreateUser   func(childComplexity int, input model.UserInput) int
-		DeleteLink   func(childComplexity int, linkID string) int
-		DeleteUser   func(childComplexity int, userID string) int
 		Login        func(childComplexity int, input model.Login) int
 		RefreshToken func(childComplexity int, input model.RefreshTokenInput) int
-		UpdateLink   func(childComplexity int, linkID string, input model.LinkInput) int
+		UpdateLink   func(childComplexity int, linkID string, input model.UpdateLinkInput) int
 		UpdateUser   func(childComplexity int, userID string, input model.UserInput) int
 	}
 
@@ -73,13 +71,11 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	CreateLink(ctx context.Context, input model.LinkInput) (*model.Link, error)
+	CreateLink(ctx context.Context, input model.CreateLinkInput) (*model.Link, error)
 	CreateUser(ctx context.Context, input model.UserInput) (string, error)
 	Login(ctx context.Context, input model.Login) (string, error)
-	UpdateLink(ctx context.Context, linkID string, input model.LinkInput) (*model.Link, error)
-	DeleteLink(ctx context.Context, linkID string) (bool, error)
+	UpdateLink(ctx context.Context, linkID string, input model.UpdateLinkInput) (*model.Link, error)
 	UpdateUser(ctx context.Context, userID string, input model.UserInput) (*model.User, error)
-	DeleteUser(ctx context.Context, userID string) (bool, error)
 	RefreshToken(ctx context.Context, input model.RefreshTokenInput) (string, error)
 }
 type QueryResolver interface {
@@ -139,7 +135,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateLink(childComplexity, args["input"].(model.LinkInput)), true
+		return e.complexity.Mutation.CreateLink(childComplexity, args["input"].(model.CreateLinkInput)), true
 
 	case "Mutation.createUser":
 		if e.complexity.Mutation.CreateUser == nil {
@@ -152,30 +148,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.UserInput)), true
-
-	case "Mutation.deleteLink":
-		if e.complexity.Mutation.DeleteLink == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_deleteLink_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DeleteLink(childComplexity, args["linkId"].(string)), true
-
-	case "Mutation.deleteUser":
-		if e.complexity.Mutation.DeleteUser == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_deleteUser_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.DeleteUser(childComplexity, args["userId"].(string)), true
 
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
@@ -211,7 +183,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateLink(childComplexity, args["linkId"].(string), args["input"].(model.LinkInput)), true
+		return e.complexity.Mutation.UpdateLink(childComplexity, args["linkId"].(string), args["input"].(model.UpdateLinkInput)), true
 
 	case "Mutation.updateUser":
 		if e.complexity.Mutation.UpdateUser == nil {
@@ -334,9 +306,15 @@ type Query {
   links: [Link!]!
 }
 
-input LinkInput {
+input CreateLinkInput {
   title: String!
   address: String!
+}
+
+input UpdateLinkInput {
+  title: String!
+  address: String!
+  userId: ID!
 }
 
 input RefreshTokenInput{
@@ -354,14 +332,11 @@ input Login {
 }
 
 type Mutation {
-  createLink(input: LinkInput!): Link!
+  createLink(input: CreateLinkInput!): Link!
   createUser(input: UserInput!): String!
   login(input: Login!): String!
-  updateLink(linkId: ID!, input: LinkInput!): Link!
-  deleteLink(linkId: ID!): Boolean!
+  updateLink(linkId: ID!, input: UpdateLinkInput!): Link!
   updateUser(userId: ID!, input: UserInput!): User!
-  deleteUser(userId: ID!): Boolean!
-  # we'll talk about this in authentication section
   refreshToken(input: RefreshTokenInput!): String!
 }`, BuiltIn: false},
 }
@@ -374,10 +349,10 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 func (ec *executionContext) field_Mutation_createLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 model.LinkInput
+	var arg0 model.CreateLinkInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐLinkInput(ctx, tmp)
+		arg0, err = ec.unmarshalNCreateLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐCreateLinkInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -398,36 +373,6 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 		}
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_deleteLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["linkId"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("linkId"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["linkId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_deleteUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["userId"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["userId"] = arg0
 	return args, nil
 }
 
@@ -473,10 +418,10 @@ func (ec *executionContext) field_Mutation_updateLink_args(ctx context.Context, 
 		}
 	}
 	args["linkId"] = arg0
-	var arg1 model.LinkInput
+	var arg1 model.UpdateLinkInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg1, err = ec.unmarshalNLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐLinkInput(ctx, tmp)
+		arg1, err = ec.unmarshalNUpdateLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐUpdateLinkInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -727,7 +672,7 @@ func (ec *executionContext) _Mutation_createLink(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateLink(rctx, args["input"].(model.LinkInput))
+		return ec.resolvers.Mutation().CreateLink(rctx, args["input"].(model.CreateLinkInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -853,7 +798,7 @@ func (ec *executionContext) _Mutation_updateLink(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateLink(rctx, args["linkId"].(string), args["input"].(model.LinkInput))
+		return ec.resolvers.Mutation().UpdateLink(rctx, args["linkId"].(string), args["input"].(model.UpdateLinkInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -868,48 +813,6 @@ func (ec *executionContext) _Mutation_updateLink(ctx context.Context, field grap
 	res := resTmp.(*model.Link)
 	fc.Result = res
 	return ec.marshalNLink2ᚖgithubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐLink(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_deleteLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_deleteLink_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteLink(rctx, args["linkId"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -952,48 +855,6 @@ func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field grap
 	res := resTmp.(*model.User)
 	fc.Result = res
 	return ec.marshalNUser2ᚖgithubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_deleteUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_deleteUser_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteUser(rctx, args["userId"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_refreshToken(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2336,8 +2197,8 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputLinkInput(ctx context.Context, obj interface{}) (model.LinkInput, error) {
-	var it model.LinkInput
+func (ec *executionContext) unmarshalInputCreateLinkInput(ctx context.Context, obj interface{}) (model.CreateLinkInput, error) {
+	var it model.CreateLinkInput
 	var asMap = obj.(map[string]interface{})
 
 	for k, v := range asMap {
@@ -2403,6 +2264,42 @@ func (ec *executionContext) unmarshalInputRefreshTokenInput(ctx context.Context,
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("token"))
 			it.Token, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateLinkInput(ctx context.Context, obj interface{}) (model.UpdateLinkInput, error) {
+	var it model.UpdateLinkInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "title":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			it.Title, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "address":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("address"))
+			it.Address, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "userId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userId"))
+			it.UserID, err = ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2525,18 +2422,8 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "deleteLink":
-			out.Values[i] = ec._Mutation_deleteLink(ctx, field)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "updateUser":
 			out.Values[i] = ec._Mutation_updateUser(ctx, field)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "deleteUser":
-			out.Values[i] = ec._Mutation_deleteUser(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -2897,6 +2784,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNCreateLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐCreateLinkInput(ctx context.Context, v interface{}) (model.CreateLinkInput, error) {
+	res, err := ec.unmarshalInputCreateLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -2963,11 +2855,6 @@ func (ec *executionContext) marshalNLink2ᚖgithubᚗcomᚋshirchᚋgraphqlᚋgr
 	return ec._Link(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐLinkInput(ctx context.Context, v interface{}) (model.LinkInput, error) {
-	res, err := ec.unmarshalInputLinkInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNLogin2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐLogin(ctx context.Context, v interface{}) (model.Login, error) {
 	res, err := ec.unmarshalInputLogin(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -2991,6 +2878,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNUpdateLinkInput2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐUpdateLinkInput(ctx context.Context, v interface{}) (model.UpdateLinkInput, error) {
+	res, err := ec.unmarshalInputUpdateLinkInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNUser2githubᚗcomᚋshirchᚋgraphqlᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {

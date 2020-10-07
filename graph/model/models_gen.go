@@ -2,16 +2,16 @@
 
 package model
 
+type CreateLinkInput struct {
+	Title   string `json:"title"`
+	Address string `json:"address"`
+}
+
 type Link struct {
 	ID      string `json:"id"`
 	Title   string `json:"title"`
 	Address string `json:"address"`
 	User    *User  `json:"user"`
-}
-
-type LinkInput struct {
-	Title   string `json:"title"`
-	Address string `json:"address"`
 }
 
 type Login struct {
@@ -21,6 +21,12 @@ type Login struct {
 
 type RefreshTokenInput struct {
 	Token string `json:"token"`
+}
+
+type UpdateLinkInput struct {
+	Title   string `json:"title"`
+	Address string `json:"address"`
+	UserID  string `json:"userId"`
 }
 
 type User struct {

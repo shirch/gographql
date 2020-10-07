@@ -2,12 +2,13 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/jinzhu/gorm"
-	"github.com/shirch/graphql/graph"
 	"github.com/shirch/graphql/graph/model"
 	"github.com/shirch/graphql/internal/pkg/jwt"
+	"github.com/shirch/graphql/internal/users"
 )
 
 var userCtxKey = &contextKey{"user"}
@@ -20,7 +21,8 @@ func Middleware(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
-
+			query := r.URL.Query()
+			fmt.Printf("query: %v", query)
 			// Allow unauthenticated users in
 			if header == "" {
 				next.ServeHTTP(w, r)
@@ -37,7 +39,7 @@ func Middleware(db *gorm.DB) func(http.Handler) http.Handler {
 
 			// create user and check if user exists in db
 			user := model.User{Name: username}
-			id, err := graph.GetUserIdByUsername(username, db)
+			id, err := users.GetUserIdByUsername(username, db)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return

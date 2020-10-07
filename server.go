@@ -7,14 +7,13 @@ import (
 	"os"
 
 	"github.com/99designs/gqlgen/handler"
+	"github.com/go-chi/chi"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/shirch/graphql/graph"
 	"github.com/shirch/graphql/graph/generated"
 	"github.com/shirch/graphql/graph/model"
 	"github.com/shirch/graphql/internal/auth"
-
-	"github.com/go-chi/chi"
 )
 
 var db *gorm.DB

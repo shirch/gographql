@@ -7,19 +7,25 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jinzhu/gorm"
 	"github.com/rs/xid"
 	"github.com/shirch/graphql/graph/generated"
 	"github.com/shirch/graphql/graph/model"
+	"github.com/shirch/graphql/internal/auth"
 	"github.com/shirch/graphql/internal/pkg/jwt"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/shirch/graphql/internal/users"
 )
 
-func (r *mutationResolver) CreateLink(ctx context.Context, input model.LinkInput) (*model.Link, error) {
+func (r *mutationResolver) CreateLink(ctx context.Context, input model.CreateLinkInput) (*model.Link, error) {
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return &model.Link{}, fmt.Errorf("access denied")
+	}
+
 	link := model.Link{
 		Title:   input.Title,
 		Address: input.Address,
 		ID:      xid.New().String(),
+		User:    user,
 	}
 	err := r.DB.Create(&link).Error
 	if err != nil {
@@ -29,7 +35,7 @@ func (r *mutationResolver) CreateLink(ctx context.Context, input model.LinkInput
 }
 
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.UserInput) (string, error) {
-	hashedPassword, err := HashPassword(input.Password)
+	hashedPassword, err := users.HashPassword(input.Password)
 	user := model.User{
 		Name:     input.Username,
 		Password: hashedPassword,
@@ -46,16 +52,11 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.UserInput
 	return token, nil
 }
 
-type Result struct {
-	Password string
-	Id       string
-}
-
 func (r *mutationResolver) Login(ctx context.Context, input model.Login) (string, error) {
 	var user model.User
 	user.Name = input.Username
 	user.Password = input.Password
-	correct := Authenticate(&user, r.DB)
+	correct := users.Authenticate(&user, r.DB)
 	if !correct {
 		return "", &WrongUsernameOrPasswordError{}
 	}
@@ -66,18 +67,19 @@ func (r *mutationResolver) Login(ctx context.Context, input model.Login) (string
 	return token, nil
 }
 
-func (r *mutationResolver) UpdateLink(ctx context.Context, linkID string, input model.LinkInput) (*model.Link, error) {
+func (r *mutationResolver) UpdateLink(ctx context.Context, linkID string, input model.UpdateLinkInput) (*model.Link, error) {
+	user, err := users.GetUserById(input.UserID, r.DB)
+	if err != nil {
+		return nil, err
+	}
 	updatedLink := model.Link{
 		ID:      linkID,
 		Title:   input.Title,
 		Address: input.Address,
+		User:    &user,
 	}
 	r.DB.Save(&updatedLink)
 	return &updatedLink, nil
-}
-
-func (r *mutationResolver) DeleteLink(ctx context.Context, linkID string) (bool, error) {
-	panic(fmt.Errorf("not implemented"))
 }
 
 func (r *mutationResolver) UpdateUser(ctx context.Context, userID string, input model.UserInput) (*model.User, error) {
@@ -88,10 +90,6 @@ func (r *mutationResolver) UpdateUser(ctx context.Context, userID string, input 
 	}
 	r.DB.Save(&updatedUser)
 	return &updatedUser, nil
-}
-
-func (r *mutationResolver) DeleteUser(ctx context.Context, userID string) (bool, error) {
-	panic(fmt.Errorf("not implemented"))
 }
 
 func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (string, error) {
@@ -128,28 +126,6 @@ type queryResolver struct{ *Resolver }
 //  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
 //    it when you're done.
 //  - You have helper methods in this file. Move them out to keep these resolver files clean.
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
-//CheckPassword hash compares raw password with it's hashed values
-func CheckPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
-}
-func GetUserIdByUsername(username string, DB *gorm.DB) (string, error) {
-	var result Result
-	DB.Raw("select id from `users` WHERE name = ?", username).Scan(&result)
-	return result.Id, nil
-}
-
-func Authenticate(user *model.User, DB *gorm.DB) bool {
-	var result Result
-	DB.Raw("select password from `users` WHERE name = ?", user.Name).Scan(&result)
-	return CheckPasswordHash(user.Password, result.Password)
-}
-
 type WrongUsernameOrPasswordError struct{}
 
 func (m *WrongUsernameOrPasswordError) Error() string {
